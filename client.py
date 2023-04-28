@@ -1,5 +1,7 @@
 import socket
 import threading
+import sys
+
 
 from os import _exit
 from sys import stdout
@@ -10,33 +12,42 @@ def get_user_input():
     while True:
         # wait for user input
         user_input = input()
-        if user_input == "":
+        if user_input == "exit":
             out_sock.close()
-            print("exiting program")
+            #print("exiting program")
             stdout.flush()
             _exit(0)
+        if user_input.split(" ")[0] == "wait":
+            #print("program waiting for " + user_input.split(" ")[1] + " seconds")
+            sleep(int(user_input.split(" ")[1]))
         else:
             try:
-                # send user input string to server, converted into bytes
+                # send user input request to server, converted into bytes
+                # request = pickle.dumps(user_input.split(" ").insert(0, CLIENT_ID))
+                #out_sock.sendall(bytes(CLIENT_ID + " " + user_input, "utf-8"))
                 out_sock.sendall(bytes(user_input, "utf-8"))
+
+                #out_sock.sendall(user_input.split(" ").insert(0, CLIENT_ID))
     
             except:
                 # handling exception in case trying to send data to a closed connection
-                print("exception in sending to server")
+                #print("exception in sending to server")
                 continue
                 
-            print("sent latest input to server")
+            #print("request sent to server")
 
 # simulates network delay then handles received message
 def handle_msg(data):
-    sleep(3)
+    #sleep(3)
     data = data.decode() # decode byte data into a string
     print(data) # echo message to console
 
 if __name__ == "__main__":
+    sleep(1) # sleep for 1sec upon process start to allow server to start first
+    id = str(sys.argv[1])
     
     # predefine client ID
-    CLIENT_ID = "P1"
+    #CLIENT_ID = "P1"
 
     # get server's IP address and port number
     SERVER_IP = socket.gethostname()
@@ -47,7 +58,8 @@ if __name__ == "__main__":
     out_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # attempt to connect own socket to server's socket address
     out_sock.connect((SERVER_IP, SERVER_PORT))
-    print("connected to server")
+    #print("connected to server")
+    out_sock.sendall(bytes(id, "utf-8"))
 
     # spawn a new thread to handle continuous user input
     threading.Thread(target=get_user_input).start()
@@ -60,12 +72,12 @@ if __name__ == "__main__":
         
         # handle exception in case something happened to connection
         except:
-            print("exception in receiving")
+            #print("exception in receiving")
             break
         if not data:
             # close own socket since other end is closed
             out_sock.close()
-            print("connection closed from server")
+            #print("connection closed from server")
             break
 
         # spawn a new thread to handle message 

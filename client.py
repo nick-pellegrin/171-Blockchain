@@ -21,8 +21,10 @@ def get_user_input():
             print("program waiting for " + user_input.split(" ")[1] + " seconds")
             sleep(int(user_input.split(" ")[1]))
         if user_input.split(" ")[0] == "hi":
-            for client in client_socks:
-                client.sendall(bytes(f"HIIIIIIII", "utf-8"))
+            # for client in client_socks:
+            #     client.sendall(bytes(f"HIIIIIIII", "utf-8"))
+            out_sock1.sendall(bytes(f"hi", "utf-8"))
+            out_sock2.sendall(bytes(f"hi", "utf-8"))
         else:
             try:
                 # send user input request to server, converted into bytes
@@ -30,7 +32,7 @@ def get_user_input():
                 # while LOCK != 0:
                 #     print(LOCK)
                 #     continue
-                # out_sock.sendall(bytes(user_input, "utf-8"))
+                out_sock.sendall(bytes(user_input, "utf-8"))
                 # release_mutex()
                 pass
 
@@ -79,47 +81,47 @@ def get_connections():
             break
         client_socks.append(conn)
         print("connected to inbound client", flush=True)
-        #threading.Thread(target=respond, args=(conn, addr,)).start()
+        threading.Thread(target=listen, args=(conn,)).start()
         #threading.Thread(target=respond_to_client, args=(conn,)).start() # spawn a new thread to handle client ***********************
 
 
-def make_connections(port):
-    # after making a successful outbound connection to another client,
-    # we do not store that connection, as connections to other clients
-    # are stored on the inbound side, we just need to make the outbound
-    # connection so the other client can store the connection on inbound
-    out_sock_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    while True:
-        try:
-            out_sock_client.connect((CLIENT_IP, port))
-            print(f"connected to client P{port - 9000}", flush=True)
-            break
-        except:
-            #print("exception in making outbound connection to client", flush=True)
-            continue
-    return out_sock_client
+# def make_connections(port):
+#     # after making a successful outbound connection to another client,
+#     # we do not store that connection, as connections to other clients
+#     # are stored on the inbound side, we just need to make the outbound
+#     # connection so the other client can store the connection on inbound
+#     out_sock_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+#     while True:
+#         try:
+#             out_sock_client.connect((CLIENT_IP, port))
+#             print(f"connected to client P{port - 9000}", flush=True)
+#             #break
+#         except:
+#             #print("exception in making outbound connection to client", flush=True)
+#             continue
+#     return out_sock_client
 # -----------------------------------------------------------------------------------------------------------------
 
 
 # HANDLE MUTUAL EXCLUSION -----------------------------------------------------------------------------------------
-def respond(conn, addr):
+def listen(conn):
 # infinite loop to keep waiting to receive new data from this client
     while True:
         try:
             # wait to receive new data, 1024 is receive buffer size
             data = conn.recv(1024)
         except:
-            print(f"exception in receiving from {addr[1]}", flush=True)
+            print(f"exception in receiving from {conn}", flush=True)
             break
             
         if not data:
             # close own socket to client since other end is closed
             conn.close()
-            print(f"connection closed from {addr[1]}", flush=True)
+            print(f"connection closed from {conn}", flush=True)
             break
 
         # spawn a new thread to handle message 
-        threading.Thread(target=handle_msg, args=(data, conn, addr)).start()
+        threading.Thread(target=handle_msg, args=(data,)).start()
 
 # def respond_to_client(client_sock):
 #     # infinite loop to keep waiting to receive new data from a client
@@ -214,18 +216,37 @@ if __name__ == "__main__":
     threading.Thread(target=get_connections).start()
 
     # create outbound connections to other clients
+    # if CLIENT_PORT == 9001:
+    #     out_sock1 = threading.Thread(target=make_connections, args=(9002,)).start()
+    #     out_sock2 = threading.Thread(target=make_connections, args=(9003,)).start()
+    #     #out_socks = [out_sock2, out_sock3]
+    # if CLIENT_PORT == 9002:
+    #     out_sock1 = threading.Thread(target=make_connections, args=(9001,)).start()
+    #     out_sock2 = threading.Thread(target=make_connections, args=(9003,)).start()
+    #     #out_socks = [out_sock1, out_sock3]
+    # if CLIENT_PORT == 9003:
+    #     out_sock1 = threading.Thread(target=make_connections, args=(9001,)).start()
+    #     out_sock2 = threading.Thread(target=make_connections, args=(9002,)).start()
+    #     #out_socks = [out_sock1, out_sock2]
+
+    sleep(8)
+    out_sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    out_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if CLIENT_PORT == 9001:
-        out_sock1 = threading.Thread(target=make_connections, args=(9002,)).start()
-        out_sock2 = threading.Thread(target=make_connections, args=(9003,)).start()
-        #out_socks = [out_sock2, out_sock3]
+        out_sock1.connect((CLIENT_IP, 9002))
+        print(f"connected to client P2", flush=True)
+        out_sock2.connect((CLIENT_IP, 9003))
+        print(f"connected to client P3", flush=True)
     if CLIENT_PORT == 9002:
-        out_sock1 = threading.Thread(target=make_connections, args=(9001,)).start()
-        out_sock2 = threading.Thread(target=make_connections, args=(9003,)).start()
-        #out_socks = [out_sock1, out_sock3]
+        out_sock1.connect((CLIENT_IP, 9001))
+        print(f"connected to client P2", flush=True)
+        out_sock2.connect((CLIENT_IP, 9003))
+        print(f"connected to client P3", flush=True)
     if CLIENT_PORT == 9003:
-        out_sock1 = threading.Thread(target=make_connections, args=(9001,)).start()
-        out_sock2 = threading.Thread(target=make_connections, args=(9002,)).start()
-        #out_socks = [out_sock1, out_sock2]
+        out_sock1.connect((CLIENT_IP, 9001))
+        print(f"connected to client P2", flush=True)
+        out_sock2.connect((CLIENT_IP, 9002))
+        print(f"connected to client P3", flush=True)
     # -------------------------------------------------------------------------------
 
 
@@ -237,5 +258,9 @@ if __name__ == "__main__":
 
     # spawn a new thread to handle continuous server response
     threading.Thread(target=respond_to_server).start()
+
+    # spawn a new thread to listen for continuous client messages
+    # for conn in client_socks:
+    #     threading.Thread(target=listen, args=(conn,)).start()
 
     # thread for handling mutex requests done after accepting inbound connection

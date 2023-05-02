@@ -26,12 +26,13 @@ def get_user_input():
         else:
             try:
                 # send user input request to server, converted into bytes
-                request_mutex()
-                while LOCK != 0:
-                    print(LOCK)
-                    continue
-                out_sock.sendall(bytes(user_input, "utf-8"))
-                release_mutex()
+                # request_mutex()
+                # while LOCK != 0:
+                #     print(LOCK)
+                #     continue
+                # out_sock.sendall(bytes(user_input, "utf-8"))
+                # release_mutex()
+                pass
 
     
             except:
@@ -47,7 +48,6 @@ def respond_to_server():
     while True:
         try:
             data = out_sock.recv(1024) # 1024 is receive buffer size
-        
         except:
             print("exception in receiving")
             break
@@ -79,7 +79,8 @@ def get_connections():
             break
         client_socks.append(conn)
         print("connected to inbound client", flush=True)
-        # threading.Thread(target=handle_msg, args=(conn.recv(1024),)).start()
+        #threading.Thread(target=respond, args=(conn, addr,)).start()
+        #threading.Thread(target=respond_to_client, args=(conn,)).start() # spawn a new thread to handle client ***********************
 
 
 def make_connections(port):
@@ -87,58 +88,77 @@ def make_connections(port):
     # we do not store that connection, as connections to other clients
     # are stored on the inbound side, we just need to make the outbound
     # connection so the other client can store the connection on inbound
-    out_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    out_sock_client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     while True:
         try:
-            out_sock.connect((CLIENT_IP, port))
+            out_sock_client.connect((CLIENT_IP, port))
             print(f"connected to client P{port - 9000}", flush=True)
             break
         except:
             #print("exception in making outbound connection to client", flush=True)
             continue
-    return out_sock
+    return out_sock_client
 # -----------------------------------------------------------------------------------------------------------------
 
 
 # HANDLE MUTUAL EXCLUSION -----------------------------------------------------------------------------------------
-def respond_to_client(client_sock):
-    # infinite loop to keep waiting to receive new data from a client
+def respond(conn, addr):
+# infinite loop to keep waiting to receive new data from this client
     while True:
         try:
-            data = client_sock.recv(1024) # 1024 is receive buffer size
+            # wait to receive new data, 1024 is receive buffer size
+            data = conn.recv(1024)
         except:
-            print("exception in receiving")
+            print(f"exception in receiving from {addr[1]}", flush=True)
             break
+            
         if not data:
-            # close own socket since other end is closed
-            client_sock.close()
-            print("connection closed from client")
+            # close own socket to client since other end is closed
+            conn.close()
+            print(f"connection closed from {addr[1]}", flush=True)
             break
-        if data.decode()[1] == "request":
-            #REQUEST_QUEUE.append((client_sock, data.decode()[2])) # (socket, timestamp)
-            #sock = REQUEST_QUEUE.pop(0)
-            print(f"REPLY {data.decode()[2]} {LAMPORT}", flush=True)
-            LAMPORT = max(LAMPORT, data.decode()[2]) + 1
-            client_sock.sendall(bytes(f"P{id} reply {data.decode()[2]} {LAMPORT}", "utf-8"))
-        if data.decode()[1] == "reply":
-            LOCK -= 1
-            print(f"REPLIED {data.decode()[2]} {LAMPORT}", flush=True)
-            LAMPORT = max(LAMPORT, data.decode()[2]) + 1
-        if data.decode()[1] == "release":
-            print(f"DONE {data.decode()[2]}", flush=True)
-            LOCK = 2
 
-def request_mutex():
-    for client in client_socks:
-        client.sendall(bytes(f"P{id} request {LAMPORT}", "utf-8"))
+        # spawn a new thread to handle message 
+        threading.Thread(target=handle_msg, args=(data, conn, addr)).start()
 
-def release_mutex():
-    for client in client_socks:
-        client.sendall(bytes(f"P{id} release {LAMPORT}", "utf-8"))
+# def respond_to_client(client_sock):
+#     # infinite loop to keep waiting to receive new data from a client
+#     while True:
+#         try:
+#             data = client_sock.recv(1024) # 1024 is receive buffer size
+#         except:
+#             print("exception in receiving")
+#             break
+#         if not data:
+#             # close own socket since other end is closed
+#             client_sock.close()
+#             print("connection closed from client")
+#             break
+#         if data.decode()[1] == "request":
+#             #REQUEST_QUEUE.append((client_sock, data.decode()[2])) # (socket, timestamp)
+#             #sock = REQUEST_QUEUE.pop(0)
+#             print(f"REPLY {data.decode()[2]} {LAMPORT}", flush=True)
+#             LAMPORT = max(LAMPORT, data.decode()[2]) + 1
+#             client_sock.sendall(bytes(f"P{id} reply {data.decode()[2]} {LAMPORT}", "utf-8"))
+#         if data.decode()[1] == "reply":
+#             LOCK -= 1
+#             print(f"REPLIED {data.decode()[2]} {LAMPORT}", flush=True)
+#             LAMPORT = max(LAMPORT, data.decode()[2]) + 1
+#         if data.decode()[1] == "release":
+#             print(f"DONE {data.decode()[2]}", flush=True)
+#             LOCK = 2
+
+# def request_mutex():
+#     for client in client_socks:
+#         client.sendall(bytes(f"P{id} request {LAMPORT}", "utf-8"))
+
+# def release_mutex():
+#     for client in client_socks:
+#         client.sendall(bytes(f"P{id} release {LAMPORT}", "utf-8"))
 
 
-def handle_request(data1, data2):
-    pass
+# def handle_request(data1, data2):
+#     pass
 # -----------------------------------------------------------------------------------------------------------------
 
     
@@ -155,7 +175,8 @@ if __name__ == "__main__":
     # initialize mutext variables
     LAMPORT = 0
     REQUEST_QUEUE = []
-    LOCK = 2          
+    global LOCK
+    LOCK = 2
 
 
     # define client IP address and port number
@@ -217,4 +238,4 @@ if __name__ == "__main__":
     # spawn a new thread to handle continuous server response
     threading.Thread(target=respond_to_server).start()
 
-    # spawn a new thread to listen for mutex requests
+    # thread for handling mutex requests done after accepting inbound connection

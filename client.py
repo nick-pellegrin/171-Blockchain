@@ -21,8 +21,18 @@ def get_user_input():
             print("program waiting for " + user_input.split(" ")[1] + " seconds")
             sleep(int(user_input.split(" ")[1]))
         if user_input.split(" ")[0] == "hi":
-            for client in client_socks:
-                client.sendall(bytes(f"HIIIIIIII", "utf-8"))
+            for sock in client_socks:
+                conn = sock[0]
+                recv_addr = sock[1]
+                # echo message back to client
+                try:
+                    # convert message into bytes and send through socket
+                    conn.sendall(bytes(f"HIIIIIIIII", "utf-8"))
+                    print(f"sent message to port {recv_addr[1]}", flush=True)
+                # handling exception in case trying to send data to a closed connection
+                except:
+                    print(f"exception in sending to port {recv_addr[1]}", flush=True)
+                    continue
         else:
             try:
                 # send user input request to server, converted into bytes
@@ -79,7 +89,7 @@ def get_connections():
             break
         client_socks.append(conn)
         print("connected to inbound client", flush=True)
-        #threading.Thread(target=respond, args=(conn, addr,)).start()
+        # threading.Thread(target=respond, args=(conn, addr,)).start()
         #threading.Thread(target=respond_to_client, args=(conn,)).start() # spawn a new thread to handle client ***********************
 
 

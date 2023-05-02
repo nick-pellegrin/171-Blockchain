@@ -8,8 +8,7 @@ from time import sleep
 from blockchain import Blockchain
 from blockchain import Block
 
-
-# terminate program upon any user input
+# keep waiting for user inputs
 def get_user_input():
     while True:
         # wait for user input
@@ -18,10 +17,11 @@ def get_user_input():
             in_sock.close()
             for sock in out_socks:
                 sock[0].close()
-            #print("exiting program", flush=True)
+            print("exiting program", flush=True)
             stdout.flush()
             _exit(0)
         if user_input.split(" ")[0] == "wait":
+            print("program waiting for " + user_input.split(" ")[1] + " seconds")
             sleep(int(user_input.split(" ")[1]))
         else:
             try:
@@ -46,13 +46,14 @@ def get_user_input():
     
             except:
                 # handling exception in case trying to send data to a closed connection
-                #print("exception in reading from user - 123", flush=True)
+                print("exception in reading from user - 123", flush=True)
                 continue
     
 
+
 # simulates network delay then handles received message
 def handle_msg(data, conn, addr):
-    #sleep(3) 
+    sleep(3) 
     data = data.decode() # decode byte data into a string
     data = data.split(" ")
     try:
@@ -69,37 +70,38 @@ def handle_msg(data, conn, addr):
             else:
                 #print(f"insufficient funds for transaction of {data[2]}: {IDS[conn]} -> {data[1]}", flush=True)
                 conn.sendall(bytes(f"Insufficient Balance", "utf-8"))
-
     except:
         pass
         #print(f"exception in handling request", flush=True)
 
 
+
 # handle a new connection by waiting to receive from connection
 def respond(conn, addr):
-    #print(f"accepted connection from port {addr[1]}", flush=True)
-
     # receive client process ID
     init_data = conn.recv(1024).decode()
     IDS[conn] = str(init_data)
-
+    print(f"accepted connection from client {IDS[conn]}", flush=True)
+    
     # infinite loop to keep waiting to receive new data from this client
     while True:
         try:
             # wait to receive new data, 1024 is receive buffer size
             data = conn.recv(1024)
         except:
-            #print(f"exception in receiving from {addr[1]}", flush=True)
+            print(f"exception in receiving from {addr[1]}", flush=True)
             break
             
         if not data:
             # close own socket to client since other end is closed
             conn.close()
-            #print(f"connection closed from {addr[1]}", flush=True)
+            print(f"connection closed from {addr[1]}", flush=True)
             break
 
         # spawn a new thread to handle message 
         threading.Thread(target=handle_msg, args=(data, conn, addr)).start()
+
+
 
 if __name__ == "__main__":
 
@@ -121,7 +123,9 @@ if __name__ == "__main__":
     # container to store all connections
     out_socks = []
     
-    threading.Thread(target=get_user_input).start() # spawn a new thread to wait for user input
+    # spawn a new thread to wait for user input
+    threading.Thread(target=get_user_input).start() 
+
 
     # infinite loop to keep accepting new connections
     while True:
@@ -130,9 +134,10 @@ if __name__ == "__main__":
             # addr: (IP, port) of connection 
             conn, addr = in_sock.accept()
         except:
-            #print("exception in accept", flush=True)
+            print("exception in accept", flush=True)
             break
         # add connection to array to send data through it later
         out_socks.append((conn, addr))
+
         # spawn new thread for responding to each connection
         threading.Thread(target=respond, args=(conn, addr)).start()

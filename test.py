@@ -1,24 +1,33 @@
-import sys
-import hashlib
+# import sys
+# import hashlib
+import socket
 
-hash_string = '2879283749283492839487593847953847593P1P2$1000'
-encoded = hash_string.encode()
-hashed = hashlib.sha256(encoded)
-hex_hash = hashed.hexdigest()
+# hash_string = '2879283749283492839487593847953847593P1P2$1000'
+# encoded = hash_string.encode()
+# hashed = hashlib.sha256(encoded)
+# hex_hash = hashed.hexdigest()
 
-print(encoded)
-print(encoded[:2])
+# print(encoded)
+# print(encoded[:2])
 
-bin_format = "{0:08b}".format(int(encoded[:2], 16))
-print(bin_format)
+# bin_format = "{0:08b}".format(int(encoded[:2], 16))
+# print(bin_format)
 
-if bin_format[:2] == "0" * 2:
-    print("True")
-else:
-    print("False")
+# if bin_format[:2] == "0" * 2:
+#     print("True")
+# else:
+#     print("False")
 
-bin_hash = bin(int(hex_hash[0], 16))[2:]
+# bin_hash = bin(int(hex_hash[0], 16))[2:]
 
-print(bin_hash)
+# print(bin_hash)
+
+# ip = socket.gethostname()
+# ip_other = socket.gethostbyname(ip)
+# print(ip)
+# print(ip_other)
+
+id = "P1"
+print(int([*id][1]))
 
 

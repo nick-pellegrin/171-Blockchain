@@ -36,7 +36,8 @@ def get_user_input():
                 request_mutex()
                 while (RC[0] != 1 and RC[1] != 1) or (RC[0] != 1 and RC[2] != 1) or (RC[1] != 1 and RC[2] != 1):
                     continue 
-
+                
+                print("Queue" + str(QUEUE))
                 # wait until head of queue is self
                 while (QUEUE[0][0] != lamport) and (QUEUE[0][1] != idNum):
                     continue
@@ -140,13 +141,8 @@ def respond(data, conn, addr):
         # print("Request received from P" + str(receivedID))
         print("Queue is " + str(QUEUE))
 
-        if (receivedLamport, receivedID) == QUEUE[0]:
-            print(f"Replying to request <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
-            out_sock_dict[receivedID].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
-
-        else:
-            # print(f"Queue head is not <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
-            pass
+        print(f"Replying to request <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
+        out_sock_dict[receivedID].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
     
     if message == "reply":
         print("Client P" + str(receivedID) + " replied" + " <" + str(lamport) + ", " + str(idNum) + ">")
@@ -155,13 +151,6 @@ def respond(data, conn, addr):
     if message == "release":
         print(f"Releasing <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
         QUEUE.pop(0)
-
-        # Now check if there are any clients waiting
-        if len(QUEUE) > 0:
-            if QUEUE[0][1] != idNum:
-                print("Now replying to next in queue")
-                out_sock_dict[QUEUE[0][1]].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
-    
 
 
 def request_mutex():
@@ -177,11 +166,6 @@ def release_mutex():
         client.sendall(bytes(f"{idNum} release {lamport}", "utf-8"))
         sleep(1)
     
-    # Now check if there are any clients waiting
-    if len(QUEUE) > 0:
-            if QUEUE[0][1] != idNum:
-                print("Now replying to next in queue")
-                out_sock_dict[QUEUE[0][1]].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
 
 # this sorts the queue by lamport time ascending, then by process number descending
 def lamportSort(pair):

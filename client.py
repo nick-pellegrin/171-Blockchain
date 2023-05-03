@@ -23,11 +23,15 @@ def get_user_input():
         else:
             try:
                 # send user input request to server, converted into bytes
-                if user_input.split(" ")[0] == "Transfer" or "Balance":
+                if user_input.split(" ")[0] == "Transfer":
+                    global lamport
+                    lamport = lamport + 1
                     request_mutex()
                     out_sock.sendall(bytes(user_input, "utf-8"))
-                    print("request sent to server")
                     release_mutex()
+
+                if user_input.split(" ")[0] == "Balance":
+                    out_sock.sendall(bytes(user_input, "utf-8"))
                 
 
     
@@ -104,32 +108,32 @@ def respond(data, conn, addr):
     data = data.decode()
     data = data.split(" ")
     #print(data)
-    try:
-        if data[1] == "request":
-            print(f"REPLY", flush=True)
-            #lamport = max(lamport, int(data[2])) + 1
-            sleep(3)
-            out_sock_dict[int(data[0])].sendall(bytes(f"{9000 + int([*id][1])} reply", "utf-8"))
-        
-        if data[1] == "reply":
-            #lock -= 1
-            print(f"REPLIED", flush=True)
-            #lamport = max(lamport, int(data[2])) + 1
-        
-        if data[1] == "release":
-            print(f"DONE", flush=True)
-            lock = 2
-    except:
-        pass
+    global lamport
+    
+    if data[1] == "request":
+        lamport = max(lamport, int(data[2]))
+        print(f"REQUEST RECEIVED, SENDING REPLY <" + str(lamport) + ", " + str(id) + ">", flush=True)
+        out_sock_dict[int(data[0])].sendall(bytes(f"{9000 + int([*id][1])} reply", "utf-8"))
+    
+    if data[1] == "reply":
+        #lock -= 1
+        print("REPLY RECEIVED <" + str(lamport) + ", " + str(id) + ">")
+        #lamport = max(lamport, int(data[2])) + 1
+    
+    if data[1] == "release":
+        print(f"RELEASE RECEIVED <" + str(lamport) + ", " + str(id) + ">", flush=True)
+        lock = 2
+    
 
 
 def request_mutex():
     sleep(3)
+    print("REQUESTING <" + str(lamport) + ", " + str(id) + ">", flush=True)
     for client in out_sock_dict.values():
         client.sendall(bytes(f"{9000 + int([*id][1])} request {lamport}", "utf-8"))
-
 def release_mutex():
     sleep(3)
+    print("RELEASING <" + str(lamport) + ", " + str(id) + ">", flush=True)
     for client in out_sock_dict.values():
         client.sendall(bytes(f"{9000 + int([*id][1])} release {lamport}", "utf-8"))
 
@@ -150,6 +154,7 @@ if __name__ == "__main__":
     id = str(sys.argv[1])
 
     # initialize mutext variables
+    global lamport
     lamport = 0
     lock = 2
     REQUEST_QUEUE = []
@@ -192,10 +197,11 @@ if __name__ == "__main__":
     threading.Thread(target=get_connections).start()
 
 
-    sleep(8)
+    sleep(5)
     out_sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     out_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if CLIENT_PORT == 9001:
+        MY_ID = 1
         out_sock1.connect((CLIENT_IP, 9002))
         out_sock_dict[9002] = out_sock1
         print(f"connected to client P2", flush=True)
@@ -203,19 +209,21 @@ if __name__ == "__main__":
         out_sock_dict[9003] = out_sock2
         print(f"connected to client P3", flush=True)
     if CLIENT_PORT == 9002:
+        MY_ID = 2
         out_sock1.connect((CLIENT_IP, 9001))
         out_sock_dict[9001] = out_sock1
-        print(f"connected to client P2", flush=True)
+        print(f"connected to client P1", flush=True)
         out_sock2.connect((CLIENT_IP, 9003))
         out_sock_dict[9003] = out_sock2
         print(f"connected to client P3", flush=True)
     if CLIENT_PORT == 9003:
+        MY_ID = 3
         out_sock1.connect((CLIENT_IP, 9001))
         out_sock_dict[9001] = out_sock1
-        print(f"connected to client P2", flush=True)
+        print(f"connected to client P1", flush=True)
         out_sock2.connect((CLIENT_IP, 9002))
         out_sock_dict[9002] = out_sock2
-        print(f"connected to client P3", flush=True)
+        print(f"connected to client P2", flush=True)
     
     # -------------------------------------------------------------------------------
 

@@ -82,7 +82,8 @@ def respond(conn, addr):
     init_data = conn.recv(1024).decode()
     IDS[conn] = str(init_data)
     print(f"accepted connection from client {IDS[conn]}", flush=True)
-    
+    if len(IDS) == 3:
+        print("all clients connected", flush=True)
     # infinite loop to keep waiting to receive new data from this client
     while True:
         try:

@@ -21,26 +21,43 @@ def get_user_input():
             print("program waiting for " + user_input.split(" ")[1] + " seconds")
             sleep(int(user_input.split(" ")[1]))
         else:
-            try:
-                # send user input request to server, converted into bytes
-                if user_input.split(" ")[0] == "Transfer":
-                    global lamport
-                    lamport = lamport + 1
-                    request_mutex()
-                    out_sock.sendall(bytes(user_input, "utf-8"))
-                    release_mutex()
 
-                if user_input.split(" ")[0] == "Balance":
-                    out_sock.sendall(bytes(user_input, "utf-8"))
+            # send user input request to server, converted into bytes
+            if user_input.split(" ")[0] == "Transfer":
+                global lamport
+                lamport = lamport + 1
+
+                # add self to queue
+                QUEUE.append((lamport, idNum))
+                QUEUE.sort(key=lamportSort)
+                # print("QUEUE is " + str(QUEUE))
+
+                # wait until 2 replies have been received
+                request_mutex()
+                while (RC[0] != 1 and RC[1] != 1) or (RC[0] != 1 and RC[2] != 1) or (RC[1] != 1 and RC[2] != 1):
+                    continue 
+
+                # wait until head of queue is self
+                while (QUEUE[0][0] != lamport) and (QUEUE[0][1] != idNum):
+                    continue
+
+                # now ready to access critical section
+                out_sock.sendall(bytes(user_input, "utf-8"))
+
+                # pop from queue and reset RC
+                QUEUE.pop(0)
+                RC[0] = 0 
+                RC[1] = 0
+                RC[2] = 0
+                release_mutex()
+
+            if user_input.split(" ")[0] == "Balance":
+                out_sock.sendall(bytes(user_input, "utf-8"))
                 
 
     
-            except:
-                # handling exception in case trying to send data to a closed connection
-                print("exception in sending to server")
-                continue
+  
                 
-            # print("request sent to server")
 
 
 def respond_to_server():
@@ -105,41 +122,75 @@ def listen(conn, addr):
 
 
 def respond(data, conn, addr):
+    global lamport
     data = data.decode()
     data = data.split(" ")
     #print(data)
-    global lamport
+
+    receivedID = int(data[0])
+    message = data[1]
+    receivedLamport = int(data[2])
     
-    if data[1] == "request":
-        lamport = max(lamport, int(data[2]))
-        print(f"REQUEST RECEIVED, SENDING REPLY <" + str(lamport) + ", " + str(id) + ">", flush=True)
-        out_sock_dict[int(data[0])].sendall(bytes(f"{9000 + int([*id][1])} reply", "utf-8"))
     
-    if data[1] == "reply":
-        #lock -= 1
-        print("REPLY RECEIVED <" + str(lamport) + ", " + str(id) + ">")
-        #lamport = max(lamport, int(data[2])) + 1
+    if message == "request":
+        lamport = max(lamport, receivedLamport)
+        
+        QUEUE.append((receivedLamport, receivedID))
+        QUEUE.sort(key=lamportSort)
+        # print("Request received from P" + str(receivedID))
+        print("Queue is " + str(QUEUE))
+
+        if (receivedLamport, receivedID) == QUEUE[0]:
+            print(f"Replying to request <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
+            out_sock_dict[receivedID].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
+
+        else:
+            # print(f"Queue head is not <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
+            pass
     
-    if data[1] == "release":
-        print(f"RELEASE RECEIVED <" + str(lamport) + ", " + str(id) + ">", flush=True)
-        lock = 2
+    if message == "reply":
+        print("Client P" + str(receivedID) + " replied" + " <" + str(lamport) + ", " + str(idNum) + ">")
+        RC[receivedID - 1] = 1
+    
+    if message == "release":
+        print(f"Releasing <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
+        QUEUE.pop(0)
+
+        # Now check if there are any clients waiting
+        if len(QUEUE) > 0:
+            if QUEUE[0][1] != idNum:
+                print("Now replying to next in queue")
+                out_sock_dict[QUEUE[0][1]].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
     
 
 
 def request_mutex():
     sleep(3)
-    print("REQUESTING <" + str(lamport) + ", " + str(id) + ">", flush=True)
+    print("Requesting <" + str(lamport) + ", " + str(idNum) + ">", flush=True)
     for client in out_sock_dict.values():
-        client.sendall(bytes(f"{9000 + int([*id][1])} request {lamport}", "utf-8"))
+        client.sendall(bytes(f"{idNum} request {lamport}", "utf-8"))
+        sleep(1)
 def release_mutex():
     sleep(3)
-    print("RELEASING <" + str(lamport) + ", " + str(id) + ">", flush=True)
+    print("Releasing <" + str(lamport) + ", " + str(idNum) + ">", flush=True)
     for client in out_sock_dict.values():
-        client.sendall(bytes(f"{9000 + int([*id][1])} release {lamport}", "utf-8"))
+        client.sendall(bytes(f"{idNum} release {lamport}", "utf-8"))
+        sleep(1)
+    
+    # Now check if there are any clients waiting
+    if len(QUEUE) > 0:
+            if QUEUE[0][1] != idNum:
+                print("Now replying to next in queue")
+                out_sock_dict[QUEUE[0][1]].sendall(bytes(f"{idNum} reply {lamport}", "utf-8"))
 
+# this sorts the queue by lamport time ascending, then by process number descending
+def lamportSort(pair):
+    return (pair[0], -pair[1])
 
 def handle_request(data1, data2):
     pass
+
+
 # -----------------------------------------------------------------------------------------------------------------
 
     
@@ -152,17 +203,18 @@ if __name__ == "__main__":
     # INITIALIZE CLIENT -------------------------------------------------------------
     sleep(1) # sleep for 1sec upon process start to allow server to start first
     id = str(sys.argv[1])
+    idNum = int([*id][1])
 
     # initialize mutext variables
-    global lamport
+    # global lamport
     lamport = 0
-    lock = 2
-    REQUEST_QUEUE = []
+    RC = [0, 0, 0] # REPLY COUNTER
+    QUEUE = []
 
 
     # define client IP address and port number
     CLIENT_IP = socket.gethostname()
-    CLIENT_PORT = 9000 + int([*id][1])
+    CLIENT_PORT = 9000 + idNum
 
     # get server's IP address and port number
     SERVER_IP = socket.gethostname()
@@ -197,32 +249,29 @@ if __name__ == "__main__":
     threading.Thread(target=get_connections).start()
 
 
-    sleep(5)
+    sleep(3)
     out_sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     out_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if CLIENT_PORT == 9001:
-        MY_ID = 1
         out_sock1.connect((CLIENT_IP, 9002))
-        out_sock_dict[9002] = out_sock1
+        out_sock_dict[2] = out_sock1
         print(f"connected to client P2", flush=True)
         out_sock2.connect((CLIENT_IP, 9003))
-        out_sock_dict[9003] = out_sock2
+        out_sock_dict[3] = out_sock2
         print(f"connected to client P3", flush=True)
     if CLIENT_PORT == 9002:
-        MY_ID = 2
         out_sock1.connect((CLIENT_IP, 9001))
-        out_sock_dict[9001] = out_sock1
+        out_sock_dict[1] = out_sock1
         print(f"connected to client P1", flush=True)
         out_sock2.connect((CLIENT_IP, 9003))
-        out_sock_dict[9003] = out_sock2
+        out_sock_dict[3] = out_sock2
         print(f"connected to client P3", flush=True)
     if CLIENT_PORT == 9003:
-        MY_ID = 3
         out_sock1.connect((CLIENT_IP, 9001))
-        out_sock_dict[9001] = out_sock1
+        out_sock_dict[1] = out_sock1
         print(f"connected to client P1", flush=True)
         out_sock2.connect((CLIENT_IP, 9002))
-        out_sock_dict[9002] = out_sock2
+        out_sock_dict[2] = out_sock2
         print(f"connected to client P2", flush=True)
     
     # -------------------------------------------------------------------------------

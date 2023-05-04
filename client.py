@@ -26,13 +26,13 @@ def get_user_input():
             if user_input.split(" ")[0] == "Transfer":
                 global lamport
                 lamport += 1
+                # print("Lamport clock now <" + str(lamport) + "," + str(idNum) + "> (Transfer Request)")
                 requestLamport = lamport
 
                 print("REQUEST <" + str(lamport) + "," + str(idNum) + ">", flush=True)
                 # add self to queue
                 QUEUE.append((lamport, idNum))
                 QUEUE.sort(key=lamportSort)
-                # print("QUEUE is " + str(QUEUE))
 
                 # wait until 2 replies have been received
                 request_mutex(requestLamport)
@@ -52,12 +52,14 @@ def get_user_input():
 
                 # print("Queue: " + str(QUEUE))
                 # wait until head of queue is self
+                print("QUEUE: " + str(QUEUE))
                 while (QUEUE[0][0] != lamport) and (QUEUE[0][1] != idNum):
                     continue
 
                 # now ready to access critical section
                 out_sock.sendall(bytes(user_input + " <" + str(requestLamport) + "," + str(idNum) + ">", "utf-8"))
                 lamport += 1
+                # print("Lamport clock now <" + str(lamport) + "," + str(idNum) + "> (Transfer Performed)")
 
                 # pop from queue and reset RC
                 QUEUE.pop(0)
@@ -152,7 +154,8 @@ def respond(data, conn, addr):
     
     if message == "request":
         lamport = max(lamport, receivedLamport) + 1
-        
+        # print("Lamport clock now <" + str(lamport) + "," + str(idNum) + "> (Request Received)")
+
         print("REPLY <" + str(receivedLamport) + "," + str(receivedID) + "> " + "<" + str(lamport) + "," + str(idNum) + ">")
         QUEUE.append((receivedLamport, receivedID))
         QUEUE.sort(key=lamportSort)
@@ -161,11 +164,14 @@ def respond(data, conn, addr):
 
         # print(f"Replying to request <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
         lamport += 1
+        # print("Lamport clock now <" + str(lamport) + "," + str(idNum) + "> (Reply Sent)")
         out_sock_dict[receivedID].sendall(bytes(f"{idNum} reply {lamport} {receivedLamport}", "utf-8"))
+        sleep(3)
     
     if message == "reply":
         lamport = max(lamport, receivedLamport) + 1
 
+        # print("Lamport clock now <" + str(lamport) + "," + str(idNum) + "> (Reply Received)")
         requestLamport = int(data[3])
 
         # print("Client P" + str(receivedID) + " replied" + " <" + str(lamport) + ", " + str(idNum) + ">")
@@ -175,6 +181,8 @@ def respond(data, conn, addr):
     if message == "release":
         requestLamport = int(data[3])
         lamport = max(lamport, receivedLamport) + 1
+        # print("Lamport clock now <" + str(lamport) + "," + str(idNum) + "> (Release Received)")
+
         print("DONE <" + str(requestLamport) + "," + str(receivedID) + ">")
         # print(f"Releasing <" + str(receivedLamport) + ", " + str(receivedID) + ">", flush=True)
         QUEUE.pop(0)
@@ -185,7 +193,7 @@ def request_mutex(requestLamport):
     # print("Requesting <" + str(lamport) + ", " + str(idNum) + ">", flush=True)
     for client in out_sock_dict.values():
         client.sendall(bytes(f"{idNum} request {requestLamport}", "utf-8"))
-        sleep(1)
+        sleep(3)
 
 def release_mutex(requestLamport):
     sleep(3)
@@ -193,12 +201,12 @@ def release_mutex(requestLamport):
     print("RELEASE <" + str(requestLamport) + "," + str(idNum) + ">")
     for client in out_sock_dict.values():
         client.sendall(bytes(f"{idNum} release {lamport} {requestLamport}", "utf-8"))
-        sleep(1)
+        sleep(3)
     
 
 # this sorts the queue by lamport time ascending, then by process number descending
 def lamportSort(pair):
-    return (-pair[0], -pair[1])
+    return (-pair[0], pair[1])
 
 def handle_request(data1, data2):
     pass

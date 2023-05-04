@@ -50,7 +50,7 @@ def get_user_input():
                 if failureFlag == 1:
                     continue
 
-                # print("Queue: " + str(QUEUE))
+                print("Queue: " + str(QUEUE))
                 # wait until head of queue is self
                 print("QUEUE: " + str(QUEUE))
                 while (QUEUE[0][0] != lamport) and (QUEUE[0][1] != idNum):
@@ -206,7 +206,7 @@ def release_mutex(requestLamport):
 
 # this sorts the queue by lamport time ascending, then by process number descending
 def lamportSort(pair):
-    return (-pair[0], pair[1])
+    return (pair[0], pair[1])
 
 def handle_request(data1, data2):
     pass
@@ -270,7 +270,7 @@ if __name__ == "__main__":
     threading.Thread(target=get_connections).start()
 
 
-    sleep(3)
+    sleep(8)
     out_sock1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     out_sock2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if CLIENT_PORT == 9001:

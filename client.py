@@ -54,7 +54,7 @@ def get_user_input():
                 print("QUEUE: " + str(QUEUE))
                 while (QUEUE[0][0] != lamport) and (QUEUE[0][1] != idNum):
                     continue
-
+                
                 # now ready to access critical section
                 out_sock.sendall(bytes(user_input + " <" + str(requestLamport) + "," + str(idNum) + ">", "utf-8"))
                 lamport += 1

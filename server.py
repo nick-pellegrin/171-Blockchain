@@ -30,7 +30,7 @@ def get_user_input():
                     if len(bc) > 1:
                         out_str = '['
                         for block in bc[1:]:
-                            out_str += f'({block[0]}, {block[1]}, ${block[2]}, {block[3]}), '
+                            out_str += f'({block[0]}, {block[1]}, ${block[2]}, {block[3]}, {block[4]}, {block[5]})\n'
                         out_str = out_str[:-2] + ']' # remove last comma+space and add closing bracket
                     elif len(bc) == 1:
                         out_str = '[]' # empty condition
@@ -64,12 +64,12 @@ def handle_msg(data, conn, addr):
         if data[0] == "Transfer": # ['Transfer', recipient process, amount]
             if blockchain.get_balance(IDS[conn]) >= int(data[2].replace("$", "")):
                 #print(f"handling transfer request of {data[2]}: {IDS[conn]} -> {data[1]}", flush=True)
-                new_block = Block(blockchain.get_latest_block().hash, IDS[conn], data[1], int(data[2].replace("$", "")))
+                new_block = Block(blockchain.get_latest_block().hash, IDS[conn], data[1], int(data[2].replace("$", "")), data[3])
                 blockchain.add_block(new_block)
-                conn.sendall(bytes(f"Success", "utf-8"))
+                conn.sendall(bytes(f"SUCCESS", "utf-8"))
             else:
                 #print(f"insufficient funds for transaction of {data[2]}: {IDS[conn]} -> {data[1]}", flush=True)
-                conn.sendall(bytes(f"Insufficient Balance", "utf-8"))
+                conn.sendall(bytes(f"INCORRECT", "utf-8"))
     except:
         pass
         #print(f"exception in handling request", flush=True)
@@ -84,6 +84,7 @@ def respond(conn, addr):
     print(f"accepted connection from client {IDS[conn]}", flush=True)
     if len(IDS) == 3:
         print("all clients connected", flush=True)
+
     # infinite loop to keep waiting to receive new data from this client
     while True:
         try:

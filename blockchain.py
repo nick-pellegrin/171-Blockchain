@@ -2,13 +2,15 @@ import hashlib
 
 
 class Block:
-    def __init__(self, previous_hash, sender, receiver, amount):
+    def __init__(self, previous_hash, sender, receiver, amount, time):
         self.previous_hash = previous_hash
         self.sender = sender
         self.receiver = receiver
         self.amount = amount
         self.nonce = 0
         self.hash = self.calculate_hash()
+        self.time = time
+
 
     def calculate_hash(self):
         hash_string = str(self.previous_hash) + str(self.sender) + str(self.receiver) + "$" + str(self.amount) + str(self.nonce)
@@ -29,7 +31,7 @@ class Blockchain:
         self.difficulty = 1
 
     def create_genesis_block(self):
-        return Block("0" * 64, "genesis_sender", "genesis_receiver", 0)
+        return Block("0" * 64, "genesis_sender", "genesis_receiver", 0, 0)
 
     def get_latest_block(self):
         return self.chain[-1]
@@ -51,6 +53,6 @@ class Blockchain:
     def get_chain(self):
         transactions = []
         for block in self.chain:
-            transactions.append((block.sender, block.receiver, block.amount, block.previous_hash))
+            transactions.append((block.sender, block.receiver, block.amount, block.nonce, block.previous_hash, block.time))
         return transactions
     

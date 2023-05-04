@@ -50,7 +50,6 @@ def get_user_input():
                 if failureFlag == 1:
                     continue
 
-                print("Queue: " + str(QUEUE))
                 # wait until head of queue is self
                 print("QUEUE: " + str(QUEUE))
                 while (QUEUE[0][0] != lamport) and (QUEUE[0][1] != idNum):
